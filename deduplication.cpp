@@ -9,10 +9,10 @@
 
 #include "read_phrase.h"
 #include "chunk_phrase.h"
+
 #include "compute_fingerprint.h"
 #include "deduplication_phrase.h"
 #include "write_file.h"
-
 
 #include "restore_file_info.h"
 #include "find_restore_file_directory.h"
@@ -24,8 +24,8 @@ using namespace std;
 
 //*******************************************目录处理************************************************
 
-extern long count_original;
-extern long count_dedup;
+extern unsigned __int64 count_original;
+extern unsigned __int64 count_dedup;
 
 
 void recusive_file(const char* lpPath, vector<string> &fileList) {
@@ -42,7 +42,7 @@ void recusive_file(const char* lpPath, vector<string> &fileList) {
 
 	while (true) {
 		if (FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-			if (FindFileData.cFileName[0] != '.') {
+			if (string(FindFileData.cFileName) != "." && string(FindFileData.cFileName) != "..") {
 				char szFile[PATH_SIZE];
 				strcpy_s(szFile, lpPath);
 				strcat_s(szFile, "\\");
@@ -65,27 +65,28 @@ void do_backup(string main_path,string main_restore_path) {
 	cout << "backup file: " << endl;
 	clock_t start, end,start_hash,end_hash;
 	start = clock();
-	string dir_path = main_path + "\\" + "ding";                    //需要备份的文件夹
+	string dir_path = main_path + "\\" + "dwj";                    //需要备份的文件夹
 	vector<string> v;
 	recusive_file(dir_path.c_str(), v);            //检索要备份的目录文件
 
 	cout << "start reading data flow..." << endl;
 	read_file(v);
+	v.clear();                                //释放这个容器的空间
 	cout << "start chunking..." << endl;
+	
 	fixed_chunking();
-
+	
 	start_hash = clock();
 	compute_fp();
 	end_hash = clock();
 	cout << "compute fingerprint time is: " << double(end_hash - start_hash) << endl;
 	
 	data_deduplication();
-
+	
 	cout << "start backup..." << endl;
-	//string main_restore_path = "G:\\restore";                    //恢复路径
-	//write_fp_recipe(main_restore_path);
-	write_file_info(main_restore_path);
+
 	write_file_data(main_restore_path);
+
 	cout << "finish backup..." << endl<<endl;
 	cout << "-----------------------------------------------------------" << endl;
 	end = clock();
@@ -94,6 +95,8 @@ void do_backup(string main_path,string main_restore_path) {
 	cout << "total chunks: "<<count_original << "\t" <<"new chunks: "<< count_dedup << endl;
 	cout << "deduplication ratio: " << double(count_original - count_dedup) / double(count_original) << endl;
 	cout << "-----------------------------------------------------------" << endl<<endl;
+	
+	
 }
 
 
@@ -105,14 +108,12 @@ void do_restore(string main_path,string main_restore_path) {
 	string backup_container_dir = main_restore_path + "\\" + "backup";
 	string backup_metadata_dir = main_restore_path + "\\" + "metadata";
 	recusive_file(backup_container_dir.c_str(), backup_container_list);           //保存container路径的容器
-	//copy(backup_container_list.begin(), backup_container_list.end(), ostream_iterator<string>(cout, "\n"));
 
 	recusive_file(backup_metadata_dir.c_str(), backup_metadata_list);          //保存metadata的路径的容器
 
 	cout << "start reading file recipe..." << endl;
 	read_file_info(backup_metadata_list);
 
-	//string main_restore_path = "G:\\restore";                    //恢复路径
 	find_restore_directory(main_restore_path, main_path);
 	cout << "finish reading..." << endl;
 
@@ -123,7 +124,6 @@ void do_restore(string main_path,string main_restore_path) {
 	end_tmp = clock();
 	cout << "restore file time is: " << double(end_tmp - start_tmp) << endl;
 	cout << "finish restore..." << endl << endl;;
-	//restore_original_data(backup_container_list);
 	cout << "**************************************************************" << endl;
 	end = clock();
 	double duration = double(end - start);
