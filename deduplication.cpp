@@ -9,10 +9,10 @@
 
 #include "read_phrase.h"
 #include "chunk_phrase.h"
-
 #include "compute_fingerprint.h"
 #include "deduplication_phrase.h"
 #include "write_file.h"
+
 
 #include "restore_file_info.h"
 #include "find_restore_file_directory.h"
@@ -42,7 +42,7 @@ void recusive_file(const char* lpPath, vector<string> &fileList) {
 
 	while (true) {
 		if (FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-			if (string(FindFileData.cFileName) != "." && string(FindFileData.cFileName) != "..") {
+			if (FindFileData.cFileName[0] != '.') {
 				char szFile[PATH_SIZE];
 				strcpy_s(szFile, lpPath);
 				strcat_s(szFile, "\\");
@@ -65,7 +65,7 @@ void do_backup(string main_path,string main_restore_path) {
 	cout << "backup file: " << endl;
 	clock_t start, end,start_hash,end_hash;
 	start = clock();
-	string dir_path = main_path + "\\" + "dwj";                    //需要备份的文件夹
+	string dir_path = main_path + "\\" + "test";                    //需要备份的文件夹
 	vector<string> v;
 	recusive_file(dir_path.c_str(), v);            //检索要备份的目录文件
 
@@ -84,9 +84,10 @@ void do_backup(string main_path,string main_restore_path) {
 	data_deduplication();
 	
 	cout << "start backup..." << endl;
-
+	//string main_restore_path = "G:\\restore";                    //恢复路径
+	//write_fp_recipe(main_restore_path);
+	write_file_info(main_restore_path);
 	write_file_data(main_restore_path);
-
 	cout << "finish backup..." << endl<<endl;
 	cout << "-----------------------------------------------------------" << endl;
 	end = clock();
@@ -108,12 +109,14 @@ void do_restore(string main_path,string main_restore_path) {
 	string backup_container_dir = main_restore_path + "\\" + "backup";
 	string backup_metadata_dir = main_restore_path + "\\" + "metadata";
 	recusive_file(backup_container_dir.c_str(), backup_container_list);           //保存container路径的容器
+	//copy(backup_container_list.begin(), backup_container_list.end(), ostream_iterator<string>(cout, "\n"));
 
 	recusive_file(backup_metadata_dir.c_str(), backup_metadata_list);          //保存metadata的路径的容器
 
 	cout << "start reading file recipe..." << endl;
 	read_file_info(backup_metadata_list);
 
+	//string main_restore_path = "G:\\restore";                    //恢复路径
 	find_restore_directory(main_restore_path, main_path);
 	cout << "finish reading..." << endl;
 
@@ -124,6 +127,7 @@ void do_restore(string main_path,string main_restore_path) {
 	end_tmp = clock();
 	cout << "restore file time is: " << double(end_tmp - start_tmp) << endl;
 	cout << "finish restore..." << endl << endl;;
+	//restore_original_data(backup_container_list);
 	cout << "**************************************************************" << endl;
 	end = clock();
 	double duration = double(end - start);
