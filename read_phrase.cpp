@@ -1,48 +1,114 @@
-#include "deduplication.h"
-#include <vector>
-#include <fstream>
-#include <iostream>
+#include "read_phrase.h"
 
 list<data_flow*> d_flow;
 list<file_info*> file_information;
-static char global_buf[READ_BUF];                   //动态申请空间的方式，避免使用静态变量(因为静态变量一直伴随着整个程序，会一直占用内存空间，知道程序结束后释放空间),但这里使用静态方式
 
-void read_file(vector<string> v) {         //文件路径列表
-	vector<string>::iterator it = v.begin();
+int find_all_file(string path) {
 
-	while (it != v.end()) {                //迭代不同的文件路径
-		cout << *it << endl;
-		ifstream in((*it).c_str(), ios::binary);
-		int total_singal_file_size = 0;
+    if (path[path.size() - 1] != '\\') {
+        path = path + "\\";
+    }
 
-		while (in.read(global_buf, READ_BUF)) {
-			total_singal_file_size += READ_BUF;                    //统计文件的字节数
-			char* tmp_read = new char[READ_BUF];               //将读到全局缓冲区的数据拷贝到动态申请的空间中
-			data_flow* d_f = new data_flow();
-			memcpy(tmp_read, global_buf, READ_BUF);
-			d_f->size = READ_BUF;
-			d_f->data = tmp_read;               //将数据流结构体的数据域指针指向这个动态分配的内存
-			d_flow.push_back(d_f);
+    WIN32_FIND_DATA fileinfo;
+    string search_path = path + "*.*";
+    HANDLE findend = FindFirstFile(search_path.c_str(), &fileinfo);
 
-			memset(global_buf, 0, sizeof(global_buf));
-		}
-		if (in.gcount() > 0) {                      //记录读取没有1MB的情况
-			total_singal_file_size += in.gcount();
-			char* tmp_read = new char[in.gcount()];
-			data_flow* d_f = new data_flow();
-			memcpy(tmp_read, global_buf, in.gcount());
-			d_f->size = in.gcount();
-			d_f->data = tmp_read;
-			d_flow.push_back(d_f);
+    if (findend != INVALID_HANDLE_VALUE) {
+        do {
+            if (fileinfo.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+                if (string(fileinfo.cFileName) != "." && 
+                    string(fileinfo.cFileName) != "..") {
+                    find_all_file(path + string(fileinfo.cFileName));
+                }
+            }
+            else {
+				start_read_file(path + string(fileinfo.cFileName));
+            }
 
-			memset(global_buf, 0, sizeof(global_buf));
-		}
-		in.close();
+        } while (FindNextFile(findend, &fileinfo));
+    }
+    else {
+        return -1;
+    }
+    FindClose(findend);
+    return 1;
+}
 
-		file_info* f_i = new file_info();
-		f_i->file_route = *it;
-		f_i->number_of_chunks = (total_singal_file_size%CHUNK_SIZE == 0) ? total_singal_file_size / CHUNK_SIZE : total_singal_file_size / CHUNK_SIZE + 1;
-		file_information.push_back(f_i);
-		it++;
+
+void start_read_file(string path) {         //文件路径列表
+
+	ifstream in(path.c_str(),ios::binary);
+	int total_singal_file_size=0;
+	char* global_buf = new char[READ_BUF];
+	while (in.read(global_buf, READ_BUF)) {
+			
+		total_singal_file_size += READ_BUF;                    //统计文件的字节数
+		data_flow* d_f = new data_flow;                   //申明结构体变量
+	
+		d_f->data.assign(global_buf, READ_BUF);
+		d_f->size = READ_BUF;
+		d_f->chunk_fp = TEMPORARY_FP;
+		d_f->container_ID = CONTAINER_ID;
+		d_f->flag = UNIQUE_CHUNK;                              //这里0表示新块
+		d_flow.push_back(d_f);
+
 	}
+	if (in.gcount() > 0) {                      //记录读取没有1MB的情况
+
+		total_singal_file_size += in.gcount();
+		data_flow* d_f = new data_flow;
+
+		d_f->data.assign(global_buf, in.gcount());
+		d_f->size = in.gcount();
+		d_f->chunk_fp = TEMPORARY_FP;
+		d_f->container_ID = CONTAINER_ID;
+		d_f->flag = UNIQUE_CHUNK;                              //这里0表示新块
+		d_flow.push_back(d_f);
+			
+	}
+	
+	in.close();
+	delete global_buf;
+		
+	file_info* f_i = new file_info;
+	f_i->file_route = path;
+	f_i->number_of_chunks = (total_singal_file_size%CHUNK_SIZE == 0) ? total_singal_file_size / CHUNK_SIZE : total_singal_file_size / CHUNK_SIZE + 1;
+	file_information.push_back(f_i);
+
+}
+
+
+void write_file_info(string main_restore_path) {
+	fstream out, in_metadata;
+
+	string container_tmp_path = main_restore_path + "\\" + "metadata";                //这里是为了写容器的信息
+	in_metadata.open(container_tmp_path.c_str(), ios::in);          //尝试是否能打开
+	if (!in_metadata)                //如果目录不存在则创建它
+		CreateDirectory(container_tmp_path.c_str(), NULL);        //创建目录
+	else                              //存在则关闭
+		in_metadata.close();
+
+	string path1 = container_tmp_path + "\\" + "file_information";         //数据块指纹
+	out.open(path1.c_str(), ios::app | ios::binary);
+
+	while (true) {
+		if (file_information.empty())
+			break;
+		file_info* f_i = file_information.front();
+		out << f_i->file_route << "|" << f_i->number_of_chunks << endl;         //这里放两个空格是为了防止文件夹名字之间有空格导致路径不正确
+
+		delete f_i;
+		file_information.pop_front();
+
+	}
+	file_information.clear();
+	out.close();
+}
+
+
+void read_file(string path,string main_restore_path) {
+	cout << "start reading data flow..." << endl;
+	find_all_file(path);
+	cout << "finish reading data flow..." << endl<<endl;
+	write_file_info(main_restore_path);
 }

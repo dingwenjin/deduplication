@@ -1,4 +1,6 @@
-void write_file(std::string main_path);
-std::string int_to_string(int n);
-void write_file_info(std::string main_path);
-void write_fp_recipe(std::string main_path);
+#pragma once 
+#include "deduplication.h"
+
+string int_to_string(int );
+void start_write_file_data(string );
+void write_file_data(string );

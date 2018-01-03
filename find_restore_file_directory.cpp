@@ -1,10 +1,6 @@
-#include "deduplication.h"
 #include "find_restore_file_directory.h"
-#include <string>
-#include <vector>
 #include <direct.h> //_mkdir函数的头文件
 #include <io.h>     //_access函数的头文件
-#include <iostream>
 
 extern list<file_info*> file_information;
 
@@ -38,10 +34,7 @@ string cut_file_name(string s) {
 
 
 void find_restore_directory(string main_restore_path,string main_path) {
-	// vector<string> v;
-	//<string>::iterator it = v1.begin();
-	// copy(v1.begin(),v1.end(),ostream_iterator<string>(cout,"\n"));
-	//cout << "\n\n**********************************************" << endl;
+
 	list<file_info*>::iterator it = file_information.begin();
 	string s,main_backup_route,full_restore_route,full_restore_dir;
 	while (it != file_information.end()) {
@@ -49,12 +42,9 @@ void find_restore_directory(string main_restore_path,string main_path) {
 		main_backup_route=s.substr(main_path.size(),s.size());         //截取要备份的文件的那一部分路径
 		full_restore_route = main_restore_path + main_backup_route;       //这条路径包括了文件名
 		(*it)->file_route = full_restore_route;               //将最新的恢复路径赋值给文件信息结构体中的文件路径
-		//cout<<"**********************************************"<<endl;
 		full_restore_dir=cut_file_name(full_restore_route);     //去掉文件名，也就是为了创建文件名之前的所有名录
-		//cout << full_restore_dir << endl;
-
+	
 		CreateDir(full_restore_dir.c_str());          //递归创建恢复的文件路径目录
 		it++;
 	}
-	//cout << "---------------------directory creating end-------------------------"<<endl;
 }

@@ -1,2 +1,5 @@
-inline std::string compute_fp_detail(std::string s);
+#pragma once 
+#include "deduplication.h"
+
+void start_compute_fp();
 void compute_fp();

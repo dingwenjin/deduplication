@@ -1,3 +1,4 @@
+#pragma once 
 #include "deduplication.h"
 
 string hash_sha1(string );

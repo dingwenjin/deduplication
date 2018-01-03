@@ -1,8 +1,8 @@
-#include<iostream>
-#include<string>
-#include<sstream>
+#include "hash.h"
 #include<cassert>
 #include<cmath>
+
+using std::hex;
 
 #define SUB_DATA_SIZE (512/8) //Byte number
 #define DATA_SIZE_LONG (64/8) 
@@ -26,9 +26,7 @@
 
 
 
-using std::string; using std::ostringstream;
-using std::cin; using std::cout; using std::endl;
-using std::hex;
+
 
 string md5_data_padding(string data) {
 	//Get padding byte number

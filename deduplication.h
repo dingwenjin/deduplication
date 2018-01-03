@@ -1,78 +1,71 @@
+#pragma once                  //防止重定义
+
 #include <list>
 #include <string>
+#include <string.h>
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include <unordered_map>
+#include <sstream>
+#include <time.h>
+#include <iterator>
+#include "windows.h"
 
-using namespace std;
+
+using std::string;
+using std::vector;
+using std::list;
+using std::vector;
+using std::cout;
+using std::endl;
+using std::fstream;
+using std::ifstream;
+using std::ofstream;
+using std::ios;
+using std::ostringstream;
+using std::unordered_map;
 
 #define CHUNK_SIZE 4096
 #define READ_BUF 1048576
 #define CONTAINER_SIZE 4194304
 #define PATH_SIZE 1024  //最长路径长度  
 
-typedef struct data_flowing {
-	char *data;
-	int size;
-}data_flow;
+#define CONTAINER_ID -1L                   //初始的容器ID
+#define TEMPORARY_FP "0000000000000000000000000000000000000000"
 
 
-typedef struct data_element {       //这里定义一个队列用于传输数据
-	char* data;                      //存放数据    默认为4KB大小的数据，但是有的文件不是4KB的整数倍，这样动态的分配长度可减少内存空间的使用
-	int size;                          //记录数据大小
-	string chunk_fp;								   // string file_fp;                //用于记录文件名的指纹
-	int container_ID;
-	int flag;                              //这里做一个标记，新数据块为0，重复数据块为1
-}data_file;
+#define UNIQUE_CHUNK 0
+#define DEDUP_CHUNK 1
 
-/*
-typedef struct fingerprint_retrieve {
+
+struct data_flow {
+	string data;
+	size_t size;                //每次最大读取1MB数据
+	uint16_t container_ID;
+	uint8_t flag;
 	string chunk_fp;
-	int container_ID;
-}fingerprint_retrieve;
-*/
+};
 
-/*
-typedef struct dedup_data_element {       //这里定义一个队列用于传输数据
-	char data[CHUNK_SIZE];                  //存放数据
-	int size;                          //记录数据大小
-	string chunk_fp;                  //记录数据的指纹
-	int container_ID;
-}dedup_data_file;
-*/
-
-
-typedef struct tmp_file_recipe {              //去重后的数据块指纹
-	//string chunk_fp;
-	int offset;                        //数据块在容器中的偏移量(起始位置)
-	int size;                             //数据块的大小
-	int container_ID;            
-}tmp_file_recipe;
 
 typedef struct file_info {             //记录文件的信息
 	string file_route;             //记录文件名
-	int number_of_chunks;                 //记录文件的数据块数
-	//unsigned __int64 file_size;                      //文件的大小  
+	uint16_t number_of_chunks;                 //记录文件的数据块数 
 }file_info;
 
 
 typedef struct file_recipe {              //整个数据集的元数据
 	string chunk_fp;										  //string chunk_fp;
 	int offset;                        //数据块在容器中的偏移量(起始位置)
-	int size;                             //数据块的大小
-	int container_ID;
-	//int file_size;
+	size_t size;                             //数据块的大小
+	uint16_t container_ID;
 }file_recipe;
 
 
 typedef struct restore_data_cache {
-	char *data;
-	int size;                         //4KB大小的数据结点的个数
-	int container_ID;                    //这些结点所属的容器ID
+	string data;
+	size_t size;                         //容器大小
+	uint16_t container_ID;                    //这些结点所属的容器ID
 	//int hit_count;                  //记录这个容器被命中的次数
 }restore_data_cache;
 
-/*
-typedef struct file_in_container {
-	int container_ID;                     //文件所在的容器的第一个container
-	int offset;                     //文件的起始数据所在容器的偏移
-	int file_size;                        //文件的大小
-}file_in_container;
-*/
