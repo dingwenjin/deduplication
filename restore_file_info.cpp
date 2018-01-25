@@ -6,6 +6,9 @@ list<file_recipe*> fp_in_container;                       //ËùÓĞÊı¾İ¿éµÄÖ¸ÎÆ¼°Ëü
 
 unordered_map<string,file_recipe*> fp_metadata;
 
+//mutex m_file_info;
+//mutex m_file_recipe;
+//mutex m_fp_in_container;
 
 vector<string> string_split(string s) {
 	int start = 0, end = 0;
@@ -48,6 +51,8 @@ void read_file_metadata(string file_metadata) {                  //¶ÁÈ¡ÎÄ¼şÂ·¾¶¼
 	fstream in_2(file_metadata, ios::in|ios::binary);
 	vector<string> v_2;
 	string s_2;
+
+	//m_file_info.lock();
 	while (getline(in_2, s_2)) {
 		v_2 = string_split(s_2);
 		file_info* f_i = new file_info();
@@ -55,6 +60,8 @@ void read_file_metadata(string file_metadata) {                  //¶ÁÈ¡ÎÄ¼şÂ·¾¶¼
 		f_i->number_of_chunks = atoi(v_2[1].c_str());
 		file_information.push_back(f_i);
 	}
+	//m_file_info.unlock();
+
 	v_2.clear();
 	in_2.close();
 }

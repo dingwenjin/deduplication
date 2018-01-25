@@ -6,17 +6,21 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <deque>
 #include <unordered_map>
 #include <sstream>
 #include <time.h>
 #include <iterator>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 #include "windows.h"
 
 
 using std::string;
 using std::vector;
 using std::list;
-using std::vector;
+using std::deque;
 using std::cout;
 using std::endl;
 using std::fstream;
@@ -26,9 +30,15 @@ using std::ios;
 using std::ostringstream;
 using std::unordered_map;
 
-#define CHUNK_SIZE 4096
-#define READ_BUF 1048576
-#define CONTAINER_SIZE 4194304
+using std::thread;
+using std::mutex;
+using std::condition_variable;
+using std::unique_lock;
+
+
+#define CHUNK_SIZE 4096                  //4KB
+#define READ_BUF 1048576                     //1MB
+#define CONTAINER_SIZE 4194304                  //4MB
 #define PATH_SIZE 1024  //最长路径长度  
 
 #define CONTAINER_ID -1L                   //初始的容器ID
@@ -38,6 +48,8 @@ using std::unordered_map;
 #define UNIQUE_CHUNK 0
 #define DEDUP_CHUNK 1
 
+
+#define QUEUE_SIZE 100
 
 struct data_flow {
 	string data;

@@ -2,8 +2,13 @@
 
 list<data_flow*> d_flow;
 list<file_info*> file_information;
+//deque<string> file_list;
 
-int find_all_file(string path) {
+mutex m_read;
+condition_variable read_empty, read_full;
+bool is_file_read_over = false;                     //用于检测文件夹的文件是否已经读取完毕
+
+void find_all_file(string path) {                          //文件搜索
 
     if (path[path.size() - 1] != '\\') {
         path = path + "\\";
@@ -27,19 +32,26 @@ int find_all_file(string path) {
 
         } while (FindNextFile(findend, &fileinfo));
     }
-    else {
-        return -1;
-    }
+   // else {
+	//	is_file_read_over = true;
+        //return -1;
+   // }
     FindClose(findend);
-    return 1;
+	//cout << "-----------------------------read file over----------------------------------" << endl;
+	//is_file_read_over = true;           //不能在这里设置标志位，因为递归返回时，后面分块开始首先会结束，导致有的文件没有分块就退出了
+    //return 1;
 }
 
 
-void start_read_file(string path) {         //文件路径列表
-
+void start_read_file(string path) {                    //文件路径列表
 	ifstream in(path.c_str(),ios::binary);
 	int total_singal_file_size=0;
 	char* global_buf = new char[READ_BUF];
+
+	//m_read.lock();                       //每次读取一个文件
+	unique_lock<mutex> lk_read(m_read);
+	read_empty.wait(lk_read, []() {return d_flow.size() != QUEUE_SIZE; });
+
 	while (in.read(global_buf, READ_BUF)) {
 			
 		total_singal_file_size += READ_BUF;                    //统计文件的字节数
@@ -50,6 +62,7 @@ void start_read_file(string path) {         //文件路径列表
 		d_f->chunk_fp = TEMPORARY_FP;
 		d_f->container_ID = CONTAINER_ID;
 		d_f->flag = UNIQUE_CHUNK;                              //这里0表示新块
+
 		d_flow.push_back(d_f);
 
 	}
@@ -66,10 +79,15 @@ void start_read_file(string path) {         //文件路径列表
 		d_flow.push_back(d_f);
 			
 	}
-	
+
+	//cout << "d_flow: " << d_flow.size() << endl;
+
+	//m_read.unlock();
+	read_full.notify_one();
+
 	in.close();
 	delete global_buf;
-		
+
 	file_info* f_i = new file_info;
 	f_i->file_route = path;
 	f_i->number_of_chunks = (total_singal_file_size%CHUNK_SIZE == 0) ? total_singal_file_size / CHUNK_SIZE : total_singal_file_size / CHUNK_SIZE + 1;
@@ -107,8 +125,10 @@ void write_file_info(string main_restore_path) {
 
 
 void read_file(string path,string main_restore_path) {
-	cout << "start reading data flow..." << endl;
-	find_all_file(path);
-	cout << "finish reading data flow..." << endl<<endl;
+	//cout << "start reading data flow..." << endl;
+	find_all_file(path);                    
+	is_file_read_over = true;                        //所有文件递归检索完成，则设置文件结束标志
+	//cout << "---------------------start writing file route-------------------------" << endl;
+	//cout << "finish reading data flow..." << endl<<endl;
 	write_file_info(main_restore_path);
 }

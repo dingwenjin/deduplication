@@ -1,9 +1,8 @@
 #include "restore_data_cache.h"
 
 
-extern list<file_info*> file_information;
+//extern list<file_info*> file_information;
 list<restore_data_cache*> restore_cache;
-
 
 int get_container_num(string container_path) {
 	auto index = container_path.find_last_of("container");
@@ -18,6 +17,7 @@ void cache_container_data(vector<string> backup_container_list) {
 	
 	int count = 0;
 	char* restore_buf = new char[CONTAINER_SIZE];
+
 	while (it != backup_container_list.end()) {
 
 		fstream in(*it,ios::in|ios::binary);
@@ -29,6 +29,7 @@ void cache_container_data(vector<string> backup_container_list) {
 		r_d_c->container_ID = get_container_num(*it);
 		r_d_c->size = len;
 		r_d_c->data.assign(restore_buf,len);
+
 		restore_cache.push_back(r_d_c);
 
 		count++;

@@ -2,6 +2,10 @@
 
 extern list<data_flow*> dedup_list;     //定义全局队列保存原始数据
 
+extern mutex m_dedup;
+extern condition_variable dedup_empty, dedup_full;
+
+extern bool is_dedup_over;
 
 string int_to_string(int n) {
 	ostringstream stream;
@@ -35,49 +39,63 @@ void start_write_file_data(string main_restore_path) {
 	uint16_t i = 1;                         //记录container号
 	string str;
 
-	bool is_dedup_over = false;                           //这里主要是为了控制外层循环
+	bool is_over = false;                           //这里主要是为了控制外层循环
 
 	while (true) {
 		str = int_to_string(i);                 //i在这里主要是记录第几个contianer
 		string path_url = path_data + "\\" + "container" + str;         //备份文件
 		out_data.open(path_url.c_str(),ios::app|ios::binary);          //这里是为了写入不同的container
-		int offset = 0,count=0;
+		int offset = 0,count_num=0;
 
 		while (true) {
-			if (dedup_list.empty()) {
-				is_dedup_over = true;
+			if (dedup_list.empty() && is_dedup_over) {                //结束标志，表示没有数据块了
+				is_over = true;
 				break;
 			}
+
+			//m_dedup.lock();
+			unique_lock<mutex> lk_dedup(m_dedup);
+			dedup_full.wait(lk_dedup, []() {return dedup_list.size() != 0; });
+
 			data_flow* d_f = dedup_list.front();
+			dedup_list.pop_front();
+			//m_dedup.unlock();
+			dedup_empty.notify_one();
+
 			full_fp << d_f->chunk_fp << endl;                  //写所有数据块的指纹
+
 			if (d_f->flag == UNIQUE_CHUNK) {                           //写不重复数据块的数据
 				out_data.write(d_f->data.c_str(), d_f->size);
 				out_chunk_in_container << d_f->chunk_fp << "|" << d_f->container_ID << "|" << offset << "|" << d_f->size << endl;
 				offset += d_f->size;
 
-				count++;                               //主要用于记录写入的container中的数据块数目
+				count_num++;                               //主要用于记录写入的container中的数据块数目
 			}
-			
+			//Sleep(1000);
+			//cout << "----------------------writing------------------------" << endl;
 			delete d_f;
-			dedup_list.pop_front();
-
-			if (count % 1024 == 0)                 //4MB写容器(本质上，也可能小于4MB,因为有的数据块可能小于4KB)
+			
+			if (count_num % 1024 == 0)                 //4MB写容器(本质上，也可能小于4MB,因为有的数据块可能小于4KB)
 				break;
 			
 		}
+		//cout << "-----------------------------exit------------------------------" << endl;
+		
 		out_data.close();
 		i++;
 
-		if (is_dedup_over)                //判断列表中是否遍历完了
+		//cout << "----------------------writing------------------------" << endl;
+		if (is_over)                //判断列表中是否遍历完了
 			break;
 	}
+	//cout << "---------------------------writing over-----------------------------" << endl;
 	full_fp.close();
 	out_chunk_in_container.close();
 }
 
 
 void write_file_data(string main_restore_path) {
-	cout << "start writing container..." << endl;
+	//cout << "start writing container..." << endl;
 	start_write_file_data(main_restore_path);
-	cout << "finish writing container..." << endl << endl;
+	//cout << "finish writing container..." << endl << endl;
 }
